@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Interest {
+  reflexao
+  rotina
+  criatividade
+  emocoes
+  silencio
+  arte
+  memorias
+  crescimento
+}
+
+enum PostIntention {
+  registrar
+  compartilhar
+  desabafar
+  refletir
+}
+
+// Intenções declaradas no onboarding (para onde o usuário quer caminhar)
+enum OnboardingIntention {
+  registrar
+  compartilhar
+  observar
+  desabafar
+  conectar
+}
+
+enum NotificationType {
+  new_reply
+  new_follower
+}
+
+// ---------------------------------------------------------------------------
+// User — identidade de autenticação (separada do perfil público)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  profile          Profile?
+  wellbeingSettings WellbeingSettings?
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Profile — apresentação pública
+// ---------------------------------------------------------------------------
+
+model Profile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  name         String
+  username     String   @unique
+  bio          String?
+  avatarInitial String  @map("avatar_initial") @db.Char(1)
+  avatarUrl    String? @map("avatar_url")
+  joinedAt     DateTime @default(now()) @map("joined_at")
+  onboardingDone Boolean @default(false) @map("onboarding_done")
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests    UserInterest[]
+  intentions   UserOnboardingIntention[]
+  posts        Post[]
+  replies      Reply[]
+  following    Follow[]       @relation("follower")
+  followers    Follow[]       @relation("following")
+  savedPosts   SavedPost[]
+  touches      Touch[]
+  notifications Notification[]
+
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------------------
+// UserInterest — interesses selecionados no onboarding
+// ---------------------------------------------------------------------------
+
+model UserInterest {
+  profileId String   @map("profile_id")
+  interest  Interest
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, interest])
+  @@map("user_interests")
+}
+
+// ---------------------------------------------------------------------------
+// UserOnboardingIntention — intenções declaradas no onboarding
+// ---------------------------------------------------------------------------
+
+model UserOnboardingIntention {
+  profileId String              @map("profile_id")
+  intention OnboardingIntention
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, intention])
+  @@map("user_onboarding_intentions")
+}
+
+// ---------------------------------------------------------------------------
+// Post — publicação textual
+// ---------------------------------------------------------------------------
+
+model Post {
+  id        String        @id @default(uuid())
+  authorId  String        @map("author_id")
+  content   String
+  intention PostIntention
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  author    Profile     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies   Reply[]
+  touches   Touch[]
+  savedBy   SavedPost[]
+
+  // repliesCount e touchedCount são SEMPRE derivados via _count — nunca armazenados
+
+  @@map("posts")
+}
+
+// ---------------------------------------------------------------------------
+// Reply — resposta reflexiva
+// ---------------------------------------------------------------------------
+
+model Reply {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post   Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author Profile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("replies")
+}
+
+// ---------------------------------------------------------------------------
+// Touch — interação privada "Isso me tocou"
+// O autor do post nunca tem acesso a esta informação
+// Nunca expor contagem em endpoints públicos
+// ---------------------------------------------------------------------------
+
+model Touch {
+  profileId String   @map("profile_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, postId])
+  @@map("touches")
+}
+
+// ---------------------------------------------------------------------------
+// SavedPost — coleção pessoal, completamente privada
+// ---------------------------------------------------------------------------
+
+model SavedPost {
+  profileId String   @map("profile_id")
+  postId    String   @map("post_id")
+  savedAt   DateTime @default(now()) @map("saved_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, postId])
+  @@map("saved_posts")
+}
+
+// ---------------------------------------------------------------------------
+// Follow — conexão entre perfis, usada internamente para o feed
+// Contagem de seguidores nunca é exposta publicamente
+// ---------------------------------------------------------------------------
+
+model Follow {
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  Profile @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following Profile @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
+// ---------------------------------------------------------------------------
+// Notification — notificações discretas
+// Tipos intencionalmente limitados: sem notificação de touch
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String           @id @default(uuid())
+  recipientId String           @map("recipient_id")
+  type        NotificationType
+  referenceId String?          @map("reference_id")
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  recipient Profile @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// WellbeingSettings — 1:1 com User, criado automaticamente no cadastro
+// ---------------------------------------------------------------------------
+
+model WellbeingSettings {
+  userId                String  @id @map("user_id")
+  reducedNotifications  Boolean @default(true)  @map("reduced_notifications")
+  hideInteractions      Boolean @default(false) @map("hide_interactions")
+  limitedFeed           Boolean @default(true)  @map("limited_feed")
+  silentMode            Boolean @default(false) @map("silent_mode")
+  darkMode              Boolean @default(false) @map("dark_mode")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wellbeing_settings")
+}

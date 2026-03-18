@@ -1,0 +1,9 @@
+# Claude local config
+.claude/
+
+# Node
+node_modules/
+
+# env
+.env
+.env.local
