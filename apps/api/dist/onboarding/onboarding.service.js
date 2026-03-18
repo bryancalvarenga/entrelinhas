@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OnboardingService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const sanitize_1 = require("../common/utils/sanitize");
 let OnboardingService = class OnboardingService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -31,13 +32,14 @@ let OnboardingService = class OnboardingService {
         if (usernameInUse) {
             throw new common_1.ConflictException('Este nome de usuário já está em uso.');
         }
-        const avatarInitial = dto.name.trim().charAt(0).toUpperCase();
+        const cleanName = (0, sanitize_1.sanitizeText)(dto.name);
+        const avatarInitial = cleanName.charAt(0).toUpperCase();
         await this.prisma.profile.update({
             where: { id: profileId },
             data: {
-                name: dto.name.trim(),
-                username: dto.username,
-                bio: dto.bio?.trim() ?? null,
+                name: cleanName,
+                username: (0, sanitize_1.sanitizeText)(dto.username).toLowerCase(),
+                bio: dto.bio ? (0, sanitize_1.sanitizeText)(dto.bio) : null,
                 avatarInitial,
                 onboardingDone: true,
                 interests: {

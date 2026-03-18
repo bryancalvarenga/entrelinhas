@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { sanitizeText } from '../common/utils/sanitize';
 
 const AUTHOR_SELECT = {
   id: true,
@@ -46,7 +47,7 @@ export class RepliesService {
       data: {
         postId,
         authorId: profileId,
-        content: dto.content,
+        content: sanitizeText(dto.content),
       },
       select: {
         id: true,

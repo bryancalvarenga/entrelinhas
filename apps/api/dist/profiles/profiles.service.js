@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProfilesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const sanitize_1 = require("../common/utils/sanitize");
 const PUBLIC_PROFILE_SELECT = {
     id: true,
     name: true,
@@ -80,13 +81,14 @@ let ProfilesService = class ProfilesService {
     async update(profileId, dto) {
         const data = {};
         if (dto.name !== undefined) {
-            data.name = dto.name.trim();
-            data.avatarInitial = dto.name.trim().charAt(0).toUpperCase();
+            const name = (0, sanitize_1.sanitizeText)(dto.name);
+            data.name = name;
+            data.avatarInitial = name.charAt(0).toUpperCase();
         }
         if (dto.bio !== undefined)
-            data.bio = dto.bio?.trim() ?? null;
+            data.bio = dto.bio ? (0, sanitize_1.sanitizeText)(dto.bio) : null;
         if (dto.avatarUrl !== undefined)
-            data.avatarUrl = dto.avatarUrl?.trim() || null;
+            data.avatarUrl = (0, sanitize_1.sanitizeUrl)(dto.avatarUrl);
         return this.prisma.profile.update({
             where: { id: profileId },
             data,

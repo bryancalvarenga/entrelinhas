@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RepliesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const sanitize_1 = require("../common/utils/sanitize");
 const AUTHOR_SELECT = {
     id: true,
     name: true,
@@ -52,7 +53,7 @@ let RepliesService = class RepliesService {
             data: {
                 postId,
                 authorId: profileId,
-                content: dto.content,
+                content: (0, sanitize_1.sanitizeText)(dto.content),
             },
             select: {
                 id: true,

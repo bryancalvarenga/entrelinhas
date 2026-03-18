@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { sanitizeText } from '../common/utils/sanitize';
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 
@@ -206,7 +207,7 @@ export class MessagesService {
     }
 
     return this.prisma.message.create({
-      data: { conversationId, senderId, content },
+      data: { conversationId, senderId, content: sanitizeText(content) },
       select: MESSAGE_SELECT,
     });
   }
@@ -230,7 +231,7 @@ export class MessagesService {
 
     return this.prisma.message.update({
       where: { id: messageId },
-      data: { content, editedAt: new Date() },
+      data: { content: sanitizeText(content), editedAt: new Date() },
       select: MESSAGE_SELECT,
     });
   }

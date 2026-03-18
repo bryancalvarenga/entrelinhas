@@ -53,15 +53,6 @@ export class FollowsService {
       update: {},
     });
 
-    // Notificar o usuário seguido
-    await this.prisma.notification.create({
-      data: {
-        recipientId: target.id,
-        type: 'new_follower',
-        referenceId: followerId,
-      },
-    });
-
     return { following: true };
   }
 

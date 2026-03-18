@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessagesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const sanitize_1 = require("../common/utils/sanitize");
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
 const SENDER_SELECT = {
     id: true,
@@ -182,7 +183,7 @@ let MessagesService = class MessagesService {
             throw new common_1.ForbiddenException(`Você poderá responder a partir das ${t}. Cada conversa tem seu próprio ritmo.`);
         }
         return this.prisma.message.create({
-            data: { conversationId, senderId, content },
+            data: { conversationId, senderId, content: (0, sanitize_1.sanitizeText)(content) },
             select: MESSAGE_SELECT,
         });
     }
@@ -199,7 +200,7 @@ let MessagesService = class MessagesService {
         }
         return this.prisma.message.update({
             where: { id: messageId },
-            data: { content, editedAt: new Date() },
+            data: { content: (0, sanitize_1.sanitizeText)(content), editedAt: new Date() },
             select: MESSAGE_SELECT,
         });
     }

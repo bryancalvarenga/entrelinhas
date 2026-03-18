@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { OnboardingDto } from './dto/onboarding.dto';
+import { sanitizeText } from '../common/utils/sanitize';
 
 @Injectable()
 export class OnboardingService {
@@ -28,14 +29,15 @@ export class OnboardingService {
       throw new ConflictException('Este nome de usuário já está em uso.');
     }
 
-    const avatarInitial = dto.name.trim().charAt(0).toUpperCase();
+    const cleanName = sanitizeText(dto.name);
+    const avatarInitial = cleanName.charAt(0).toUpperCase();
 
     await this.prisma.profile.update({
       where: { id: profileId },
       data: {
-        name: dto.name.trim(),
-        username: dto.username,
-        bio: dto.bio?.trim() ?? null,
+        name: cleanName,
+        username: sanitizeText(dto.username).toLowerCase(),
+        bio: dto.bio ? sanitizeText(dto.bio) : null,
         avatarInitial,
         onboardingDone: true,
         interests: {

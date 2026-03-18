@@ -11,8 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostsService = void 0;
 const common_1 = require("@nestjs/common");
-const DAILY_POST_LIMIT = 1;
 const prisma_service_1 = require("../database/prisma.service");
+const sanitize_1 = require("../common/utils/sanitize");
+const DAILY_POST_LIMIT = 1;
 const AUTHOR_SELECT = {
     id: true,
     name: true,
@@ -46,7 +47,7 @@ let PostsService = class PostsService {
         const post = await this.prisma.post.create({
             data: {
                 authorId: profileId,
-                content: dto.content,
+                content: (0, sanitize_1.sanitizeText)(dto.content),
                 intention: dto.intention,
             },
             select: {

@@ -29,7 +29,9 @@ __decorate([
 ], UpdateProfileDto.prototype, "bio", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Allow)(),
+    (0, class_validator_1.ValidateIf)((o) => o.avatarUrl !== null),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
     __metadata("design:type", Object)
 ], UpdateProfileDto.prototype, "avatarUrl", void 0);
 //# sourceMappingURL=update-profile.dto.js.map

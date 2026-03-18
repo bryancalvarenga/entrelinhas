@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength, MinLength, Allow } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -12,7 +12,10 @@ export class UpdateProfileDto {
   @MaxLength(200)
   bio?: string;
 
+  // null é permitido (remover avatar); string deve ser validada como string
   @IsOptional()
-  @Allow()
+  @ValidateIf((o) => o.avatarUrl !== null)
+  @IsString()
+  @MaxLength(500)
   avatarUrl?: string | null;
 }

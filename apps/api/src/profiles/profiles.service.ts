@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { sanitizeText, sanitizeUrl } from '../common/utils/sanitize';
 
 // Campos públicos de um perfil — nunca incluir contagem de seguidores
 const PUBLIC_PROFILE_SELECT = {
@@ -79,11 +80,12 @@ export class ProfilesService {
   async update(profileId: string, dto: UpdateProfileDto) {
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) {
-      data.name = dto.name.trim();
-      data.avatarInitial = dto.name.trim().charAt(0).toUpperCase();
+      const name = sanitizeText(dto.name);
+      data.name = name;
+      data.avatarInitial = name.charAt(0).toUpperCase();
     }
-    if (dto.bio !== undefined) data.bio = dto.bio?.trim() ?? null;
-    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl?.trim() || null;
+    if (dto.bio !== undefined) data.bio = dto.bio ? sanitizeText(dto.bio) : null;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = sanitizeUrl(dto.avatarUrl);
 
     return this.prisma.profile.update({
       where: { id: profileId },

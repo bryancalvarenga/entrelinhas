@@ -3,10 +3,11 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-
-const DAILY_POST_LIMIT = 1;
 import { PrismaService } from '../database/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { sanitizeText } from '../common/utils/sanitize';
+
+const DAILY_POST_LIMIT = 1;
 
 // Selects de author usados em múltiplos pontos — nunca expor follower count
 const AUTHOR_SELECT = {
@@ -49,7 +50,7 @@ export class PostsService {
     const post = await this.prisma.post.create({
       data: {
         authorId: profileId,
-        content: dto.content,
+        content: sanitizeText(dto.content),
         intention: dto.intention,
       },
       select: {
