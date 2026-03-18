@@ -10,10 +10,28 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+
 async function fetchStats(): Promise<{ users: number; posts: number } | null> {
   try {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
-    const res = await fetch(`${base}/stats`, { cache: "no-store" });
+    const res = await fetch(`${API}/stats`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+interface RandomPost {
+  id: string;
+  content: string;
+  intention: string;
+  author: { name: string; username: string };
+}
+
+async function fetchRandomPost(): Promise<RandomPost | null> {
+  try {
+    const res = await fetch(`${API}/posts/random`, { cache: "no-store" });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -22,7 +40,7 @@ async function fetchStats(): Promise<{ users: number; posts: number } | null> {
 }
 
 export default async function LandingPage() {
-  const stats = await fetchStats();
+  const [stats, randomPost] = await Promise.all([fetchStats(), fetchRandomPost()]);
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -143,22 +161,23 @@ export default async function LandingPage() {
               </p>
             </div>
             <div className="bg-card rounded-2xl p-8 border border-border/50">
-              <blockquote className="text-lg italic text-foreground leading-relaxed">
-                "Escrever aqui é como conversar com um amigo que nunca
-                interrompe e sempre entende. Finalmente encontrei um lugar onde
-                posso ser eu mesma."
-              </blockquote>
-              <div className="mt-6 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  <span className="text-sm text-muted-foreground">M</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Marina</p>
-                  <p className="text-xs text-muted-foreground">
-                    Membro desde 2024
+              {randomPost ? (
+                <>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+                    {randomPost.intention}
                   </p>
-                </div>
-              </div>
+                  <p className="text-lg text-foreground leading-relaxed line-clamp-5">
+                    {randomPost.content}
+                  </p>
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    — {randomPost.author.name}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted-foreground italic">
+                  Ainda não há registros.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -335,29 +354,29 @@ export default async function LandingPage() {
             </div>
             <nav className="flex items-center gap-8">
               <Link
-                href="#"
+                href="#sobre"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Sobre
               </Link>
               <Link
-                href="#"
+                href="/settings/privacy"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Privacidade
               </Link>
               <Link
-                href="#"
+                href="/settings/help"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                Termos
+                Ajuda
               </Link>
-              <Link
-                href="#"
+              <a
+                href="mailto:oi@entrelinhas.app"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Contato
-              </Link>
+              </a>
             </nav>
           </div>
           <div className="mt-12 pt-8 border-t border-border/50 text-center">

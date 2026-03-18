@@ -89,6 +89,25 @@ export class PostsService {
     });
   }
 
+  async findRandom() {
+    const count = await this.prisma.post.count();
+    if (count === 0) return null;
+    const skip = Math.floor(Math.random() * count);
+    const posts = await this.prisma.post.findMany({
+      take: 1,
+      skip,
+      select: {
+        id: true,
+        content: true,
+        intention: true,
+        createdAt: true,
+        author: { select: AUTHOR_SELECT },
+        _count: { select: { replies: true } },
+      },
+    });
+    return posts[0] ?? null;
+  }
+
   // Usado internamente por outros serviços (feed, saved-posts)
   buildPostSelect() {
     return {

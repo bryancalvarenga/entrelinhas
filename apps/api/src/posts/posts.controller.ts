@@ -30,6 +30,12 @@ export class PostsController {
     return this.postsService.search(q.trim());
   }
 
+  // Registro aleatório público — usado na landing page
+  @Get('random')
+  findRandom() {
+    return this.postsService.findRandom();
+  }
+
   // Endpoint público — não inclui contagem de touches
   @Get(':id')
   findOne(@Param('id') id: string) {
