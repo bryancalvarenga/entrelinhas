@@ -17,11 +17,20 @@ async function request<T>(
 
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
+  if (res.status === 401) {
+    authStorage.clear();
+    if (typeof window !== "undefined") {
+      window.location.replace("/login");
+    }
+    throw new Error("Sessão expirada. Por favor, faça login novamente.");
+  }
+
   if (!res.ok) {
-    const error = await res
-      .json()
-      .catch(() => ({ message: "Erro desconhecido" }));
-    throw new Error(error.message ?? "Erro na requisição");
+    const body = await res.json().catch(() => null);
+    const msg = Array.isArray(body?.message)
+      ? body.message[0]
+      : (body?.message ?? "Erro na requisição");
+    throw new Error(msg);
   }
 
   if (res.status === 204) return undefined as T;

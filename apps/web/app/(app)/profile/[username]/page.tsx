@@ -39,6 +39,7 @@ export default function UserProfilePage({
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [startingChat, setStartingChat] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -139,23 +140,31 @@ export default function UserProfilePage({
         </p>
 
         {profileId && profileId !== profile.id && (
-          <button
-            onClick={async () => {
-              if (startingChat) return;
-              setStartingChat(true);
-              try {
-                const { conversationId } = await findOrCreateConversation(username);
-                router.push(`/messages/${conversationId}`);
-              } catch {
-                setStartingChat(false);
-              }
-            }}
-            disabled={startingChat}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border border-border/50 rounded-full px-4 py-1.5 transition-colors hover:border-border"
-          >
-            <MessageSquare className="h-4 w-4" />
-            {startingChat ? "Abrindo..." : "Enviar mensagem"}
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={async () => {
+                if (startingChat) return;
+                setStartingChat(true);
+                setChatError(null);
+                try {
+                  const { conversationId } = await findOrCreateConversation(username);
+                  router.push(`/messages/${conversationId}`);
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Não foi possível abrir a conversa.";
+                  setChatError(msg);
+                  setStartingChat(false);
+                }
+              }}
+              disabled={startingChat}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border border-border/50 rounded-full px-4 py-1.5 transition-colors hover:border-border"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {startingChat ? "Abrindo..." : "Enviar mensagem"}
+            </button>
+            {chatError && (
+              <p className="text-xs text-destructive">{chatError}</p>
+            )}
+          </div>
         )}
       </div>
 

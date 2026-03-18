@@ -52,6 +52,7 @@ export default function ConversationPage({
   const [data, setData] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
 
@@ -64,9 +65,10 @@ export default function ConversationPage({
     getConversation(id)
       .then((d) => {
         setData(d);
+        setLoadError(false);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   };
 
@@ -150,10 +152,12 @@ export default function ConversationPage({
     );
   }
 
-  if (!data) {
+  if (loadError || !data) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-12 text-center">
-        <p className="text-muted-foreground mb-4">Conversa não encontrada.</p>
+        <p className="text-muted-foreground mb-4">
+          {loadError ? "Não foi possível carregar a conversa." : "Conversa não encontrada."}
+        </p>
         <Link href="/messages" className="text-sm text-primary hover:underline underline-offset-4">
           Voltar
         </Link>
