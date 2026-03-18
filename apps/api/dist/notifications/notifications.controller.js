@@ -23,6 +23,9 @@ let NotificationsController = class NotificationsController {
     findUnread(req) {
         return this.notificationsService.findUnread(req.user.profileId);
     }
+    countUnread(req) {
+        return this.notificationsService.countUnread(req.user.profileId);
+    }
     markAllRead(req) {
         return this.notificationsService.markAllRead(req.user.profileId);
     }
@@ -38,6 +41,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], NotificationsController.prototype, "findUnread", null);
+__decorate([
+    (0, common_1.Get)('count'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], NotificationsController.prototype, "countUnread", null);
 __decorate([
     (0, common_1.Patch)('read'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),

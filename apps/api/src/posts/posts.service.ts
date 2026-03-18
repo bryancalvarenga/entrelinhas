@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+
+const DAILY_POST_LIMIT = 1;
 import { PrismaService } from '../database/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 
@@ -19,7 +21,31 @@ const AUTHOR_SELECT = {
 export class PostsService {
   constructor(private prisma: PrismaService) {}
 
+  async canPost(profileId: string): Promise<{ canPost: boolean; nextPostAt: string }> {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const count = await this.prisma.post.count({
+      where: {
+        authorId: profileId,
+        createdAt: { gte: startOfDay },
+      },
+    });
+
+    const canPost = count < DAILY_POST_LIMIT;
+    const nextPostAt = new Date();
+    nextPostAt.setUTCHours(24, 0, 0, 0);
+    return { canPost, nextPostAt: nextPostAt.toISOString() };
+  }
+
   async create(profileId: string, dto: CreatePostDto) {
+    const { canPost } = await this.canPost(profileId);
+    if (!canPost) {
+      throw new ForbiddenException(
+        'Você já publicou hoje. Cada dia tem espaço para um registro — volte amanhã.',
+      );
+    }
+
     const post = await this.prisma.post.create({
       data: {
         authorId: profileId,

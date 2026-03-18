@@ -5,8 +5,8 @@ export declare class RepliesController {
     constructor(repliesService: RepliesService);
     findAll(postId: string): Promise<{
         id: string;
-        content: string;
         createdAt: Date;
+        content: string;
         author: {
             id: string;
             name: string;
@@ -17,8 +17,8 @@ export declare class RepliesController {
     }[]>;
     create(postId: string, req: any, dto: CreateReplyDto): Promise<{
         id: string;
-        content: string;
         createdAt: Date;
+        content: string;
         author: {
             id: string;
             name: string;

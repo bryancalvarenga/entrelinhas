@@ -47,6 +47,61 @@ export interface MyProfile extends PublicProfile {
   onboardingDone: boolean;
 }
 
+export interface AppNotification {
+  id: string;
+  type: "new_reply" | "new_follower";
+  referenceId: string | null;
+  createdAt: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  createdAt: string;
+  otherProfile: {
+    id: string;
+    name: string;
+    username: string;
+    avatarInitial: string;
+    avatarUrl?: string | null;
+  } | null;
+  lastMessage: {
+    id: string;
+    content: string;
+    sentAt: string;
+    senderId: string;
+  } | null;
+  unread: boolean;
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  sentAt: string;
+  editedAt: string | null;
+  senderId: string;
+  sender: {
+    id: string;
+    name: string;
+    username: string;
+    avatarInitial: string;
+    avatarUrl?: string | null;
+  };
+}
+
+export interface ConversationDetail {
+  conversationId: string;
+  otherProfile: {
+    id: string;
+    name: string;
+    username: string;
+    avatarInitial: string;
+    avatarUrl?: string | null;
+  } | null;
+  messages: Message[];
+  canSend: boolean;
+  unlocksAt: string | null;
+}
+
 export interface WellbeingSettings {
   reducedNotifications: boolean;
   hideInteractions: boolean;

@@ -11,6 +11,9 @@ export declare class NotificationsService {
     markAllRead(profileId: string): Promise<{
         done: boolean;
     }>;
+    countUnread(profileId: string): Promise<{
+        count: number;
+    }>;
     markOneRead(id: string, profileId: string): Promise<{
         done: boolean;
     }>;

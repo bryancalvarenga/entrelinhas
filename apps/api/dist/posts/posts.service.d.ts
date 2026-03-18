@@ -3,6 +3,10 @@ import { CreatePostDto } from './dto/create-post.dto';
 export declare class PostsService {
     private prisma;
     constructor(prisma: PrismaService);
+    canPost(profileId: string): Promise<{
+        canPost: boolean;
+        nextPostAt: string;
+    }>;
     create(profileId: string, dto: CreatePostDto): Promise<{
         id: string;
         createdAt: Date;
@@ -54,6 +58,22 @@ export declare class PostsService {
             avatarUrl: string | null;
         };
     }[]>;
+    findRandom(): Promise<{
+        id: string;
+        createdAt: Date;
+        _count: {
+            replies: number;
+        };
+        content: string;
+        intention: import(".prisma/client").$Enums.PostIntention;
+        author: {
+            id: string;
+            name: string;
+            username: string;
+            avatarInitial: string;
+            avatarUrl: string | null;
+        };
+    } | null>;
     buildPostSelect(): {
         readonly id: true;
         readonly content: true;

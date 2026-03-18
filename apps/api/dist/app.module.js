@@ -21,6 +21,7 @@ const feed_module_1 = require("./feed/feed.module");
 const notifications_module_1 = require("./notifications/notifications.module");
 const wellbeing_module_1 = require("./wellbeing/wellbeing.module");
 const stats_module_1 = require("./stats/stats.module");
+const messages_module_1 = require("./messages/messages.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -40,6 +41,7 @@ exports.AppModule = AppModule = __decorate([
             notifications_module_1.NotificationsModule,
             wellbeing_module_1.WellbeingModule,
             stats_module_1.StatsModule,
+            messages_module_1.MessagesModule,
         ],
     })
 ], AppModule);

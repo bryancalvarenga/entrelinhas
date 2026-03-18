@@ -84,6 +84,8 @@ model Profile {
   savedPosts   SavedPost[]
   touches      Touch[]
   notifications Notification[]
+  conversations ConversationParticipant[]
+  messagesSent  Message[]
 
   @@map("profiles")
 }
@@ -222,6 +224,51 @@ model Notification {
   recipient Profile @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// WellbeingSettings — 1:1 com User, criado automaticamente no cadastro
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Conversation — canal privado entre dois perfis
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id           String                    @id @default(uuid())
+  createdAt    DateTime                  @default(now()) @map("created_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String    @map("conversation_id")
+  profileId      String    @map("profile_id")
+  lastSeenAt     DateTime? @map("last_seen_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  profile      Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, profileId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String    @map("conversation_id")
+  senderId       String    @map("sender_id")
+  content        String
+  sentAt         DateTime  @default(now()) @map("sent_at")
+  editedAt       DateTime? @map("edited_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       Profile      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
 // ---------------------------------------------------------------------------

@@ -23,6 +23,13 @@ export class PostsController {
     return this.postsService.create(req.user.profileId, dto);
   }
 
+  // Status de publicação — guarded, retorna { canPost, nextPostAt }
+  @Get('can-post')
+  @UseGuards(JwtAuthGuard)
+  canPost(@Request() req: any) {
+    return this.postsService.canPost(req.user.profileId);
+  }
+
   // Rota estática antes da paramétrica :id
   @Get('search')
   search(@Query('q') q: string) {

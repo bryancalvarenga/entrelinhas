@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { Post, Reply, PublicProfile, MyProfile, WellbeingSettings } from "./types";
+import { Post, Reply, PublicProfile, MyProfile, WellbeingSettings, AppNotification, ConversationSummary, ConversationDetail } from "./types";
 
 export interface UpdateProfilePayload {
   name?: string;
@@ -129,6 +129,54 @@ export async function searchProfiles(q: string): Promise<PublicProfile[]> {
 // Stats públicos — para homepage
 export async function getStats(): Promise<{ users: number; posts: number }> {
   return api.get("/stats");
+}
+
+// Limit diário de publicação
+export async function getCanPost(): Promise<{ canPost: boolean; nextPostAt: string }> {
+  return api.get("/posts/can-post");
+}
+
+// Notifications
+
+export async function getNotifications(): Promise<AppNotification[]> {
+  return api.get<AppNotification[]>("/notifications");
+}
+
+export async function getNotificationCount(): Promise<{ count: number }> {
+  return api.get<{ count: number }>("/notifications/count");
+}
+
+export async function markAllNotificationsRead(): Promise<{ done: boolean }> {
+  return api.patch<{ done: boolean }>("/notifications/read", {});
+}
+
+export async function markNotificationRead(id: string): Promise<{ done: boolean }> {
+  return api.patch<{ done: boolean }>(`/notifications/${id}/read`, {});
+}
+
+// Conversations / Messages
+export async function findOrCreateConversation(recipientUsername: string): Promise<{ conversationId: string }> {
+  return api.post<{ conversationId: string }>("/conversations", { recipientUsername });
+}
+
+export async function getConversations(): Promise<ConversationSummary[]> {
+  return api.get<ConversationSummary[]>("/conversations");
+}
+
+export async function getConversation(id: string): Promise<ConversationDetail> {
+  return api.get<ConversationDetail>(`/conversations/${id}`);
+}
+
+export async function sendMessage(conversationId: string, content: string) {
+  return api.post(`/conversations/${conversationId}/messages`, { content });
+}
+
+export async function editMessage(conversationId: string, messageId: string, content: string) {
+  return api.patch(`/conversations/${conversationId}/messages/${messageId}`, { content });
+}
+
+export async function deleteMessage(conversationId: string, messageId: string) {
+  return api.delete(`/conversations/${conversationId}/messages/${messageId}`);
 }
 
 // Account

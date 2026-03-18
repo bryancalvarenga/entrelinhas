@@ -8,6 +8,9 @@ export declare class NotificationsController {
         type: import(".prisma/client").$Enums.NotificationType;
         referenceId: string | null;
     }[]>;
+    countUnread(req: any): Promise<{
+        count: number;
+    }>;
     markAllRead(req: any): Promise<{
         done: boolean;
     }>;

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, Send, BookOpen, Share2, Heart, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createPost, PostIntention } from "@/lib/posts";
+import { createPost, getCanPost, PostIntention } from "@/lib/posts";
 
 const INTENTIONS: {
   id: PostIntention;
@@ -40,6 +40,15 @@ const INTENTIONS: {
   },
 ];
 
+function formatNextPostTime(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 export default function NewPostPage() {
   const router = useRouter();
   const [intention, setIntention] = useState<PostIntention | null>(null);
@@ -47,7 +56,22 @@ export default function NewPostPage() {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
 
-  const canPublish = intention && content.trim().length >= 10 && !publishing;
+  const [canPostStatus, setCanPostStatus] = useState<{
+    canPost: boolean;
+    nextPostAt: string;
+  } | null>(null);
+
+  useEffect(() => {
+    getCanPost()
+      .then(setCanPostStatus)
+      .catch(() => setCanPostStatus({ canPost: true, nextPostAt: "" }));
+  }, []);
+
+  const canPublish =
+    canPostStatus?.canPost &&
+    intention !== null &&
+    content.trim().length >= 10 &&
+    !publishing;
 
   const handlePublish = async () => {
     if (!canPublish || !intention) return;
@@ -65,6 +89,54 @@ export default function NewPostPage() {
       setPublishing(false);
     }
   };
+
+  // Estado bloqueado — já publicou hoje
+  if (canPostStatus !== null && !canPostStatus.canPost) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/50">
+          <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
+            <Link
+              href="/feed"
+              className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <X className="h-5 w-5 text-muted-foreground" />
+              <span className="sr-only">Fechar</span>
+            </Link>
+            <span className="text-sm text-muted-foreground">Novo registro</span>
+            <div className="w-20" />
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center px-6 pt-20">
+          <div className="max-w-sm text-center">
+            <p className="text-4xl mb-6">✦</p>
+            <h1 className="text-xl font-light text-foreground mb-3">
+              Você já escreveu hoje.
+            </h1>
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              Cada dia tem espaço para um registro. Essa pausa faz parte da proposta — escrever com mais intenção, não mais velocidade.
+            </p>
+            {canPostStatus.nextPostAt && (
+              <p className="text-sm text-muted-foreground mb-8">
+                Você poderá publicar novamente a partir das{" "}
+                <span className="text-foreground">
+                  {formatNextPostTime(canPostStatus.nextPostAt)}
+                </span>{" "}
+                (UTC).
+              </p>
+            )}
+            <Link
+              href="/feed"
+              className="text-sm text-primary hover:underline underline-offset-4"
+            >
+              Voltar ao feed
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

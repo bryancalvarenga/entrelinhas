@@ -24,10 +24,16 @@ let PostsController = class PostsController {
     create(req, dto) {
         return this.postsService.create(req.user.profileId, dto);
     }
+    canPost(req) {
+        return this.postsService.canPost(req.user.profileId);
+    }
     search(q) {
         if (!q?.trim())
             return [];
         return this.postsService.search(q.trim());
+    }
+    findRandom() {
+        return this.postsService.findRandom();
     }
     findOne(id) {
         return this.postsService.findById(id);
@@ -47,12 +53,26 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PostsController.prototype, "create", null);
 __decorate([
+    (0, common_1.Get)('can-post'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PostsController.prototype, "canPost", null);
+__decorate([
     (0, common_1.Get)('search'),
     __param(0, (0, common_1.Query)('q')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PostsController.prototype, "search", null);
+__decorate([
+    (0, common_1.Get)('random'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PostsController.prototype, "findRandom", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

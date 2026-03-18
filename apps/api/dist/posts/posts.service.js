@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostsService = void 0;
 const common_1 = require("@nestjs/common");
+const DAILY_POST_LIMIT = 1;
 const prisma_service_1 = require("../database/prisma.service");
 const AUTHOR_SELECT = {
     id: true,
@@ -23,7 +24,25 @@ let PostsService = class PostsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async canPost(profileId) {
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const count = await this.prisma.post.count({
+            where: {
+                authorId: profileId,
+                createdAt: { gte: startOfDay },
+            },
+        });
+        const canPost = count < DAILY_POST_LIMIT;
+        const nextPostAt = new Date();
+        nextPostAt.setUTCHours(24, 0, 0, 0);
+        return { canPost, nextPostAt: nextPostAt.toISOString() };
+    }
     async create(profileId, dto) {
+        const { canPost } = await this.canPost(profileId);
+        if (!canPost) {
+            throw new common_1.ForbiddenException('Você já publicou hoje. Cada dia tem espaço para um registro — volte amanhã.');
+        }
         const post = await this.prisma.post.create({
             data: {
                 authorId: profileId,
@@ -83,6 +102,25 @@ let PostsService = class PostsService {
                 _count: { select: { replies: true } },
             },
         });
+    }
+    async findRandom() {
+        const count = await this.prisma.post.count();
+        if (count === 0)
+            return null;
+        const skip = Math.floor(Math.random() * count);
+        const posts = await this.prisma.post.findMany({
+            take: 1,
+            skip,
+            select: {
+                id: true,
+                content: true,
+                intention: true,
+                createdAt: true,
+                author: { select: AUTHOR_SELECT },
+                _count: { select: { replies: true } },
+            },
+        });
+        return posts[0] ?? null;
     }
     buildPostSelect() {
         return {

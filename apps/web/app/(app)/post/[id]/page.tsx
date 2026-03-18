@@ -24,9 +24,11 @@ import {
   unsavePost,
   deletePost,
   deleteReply,
+  getMyProfile,
 } from "@/lib/posts";
-import { Post, Reply } from "@/lib/types";
+import { Post, Reply, MyProfile } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
+import { useWellbeing } from "@/context/wellbeing-context";
 
 const INTENTION_LABELS: Record<Post["intention"], string> = {
   registrar: "Registro",
@@ -68,8 +70,10 @@ export default function PostPage({
 }) {
   const { id } = use(params);
   const { profileId } = useAuth();
+  const { settings } = useWellbeing();
 
   const [post, setPost] = useState<Post | null>(null);
+  const [myProfile, setMyProfile] = useState<MyProfile | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -85,6 +89,8 @@ export default function PostPage({
   const [deletingPost, setDeletingPost] = useState(false);
 
   useEffect(() => {
+    getMyProfile().then(setMyProfile).catch(() => {});
+
     Promise.all([
       getPost(id),
       getReplies(id),
@@ -271,21 +277,23 @@ export default function PostPage({
         {/* Actions — sem exibição de contagem de touch */}
         <div className="flex items-center justify-between py-4 border-y border-border/50">
           <div className="flex items-center gap-4">
-            <button
-              onClick={handleTouch}
-              disabled={touchLoading}
-              className={cn(
-                "flex items-center gap-2 transition-colors",
-                isTouched
-                  ? "text-accent"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <HeartHandshake
-                className={cn("h-5 w-5", isTouched && "fill-current")}
-              />
-              <span>{isTouched ? "Me tocou" : "Isso me tocou"}</span>
-            </button>
+            {!settings.hideInteractions && (
+              <button
+                onClick={handleTouch}
+                disabled={touchLoading}
+                className={cn(
+                  "flex items-center gap-2 transition-colors",
+                  isTouched
+                    ? "text-accent"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <HeartHandshake
+                  className={cn("h-5 w-5", isTouched && "fill-current")}
+                />
+                <span>{isTouched ? "Me tocou" : "Isso me tocou"}</span>
+              </button>
+            )}
 
             {profileId === post.author.id && (
               <button
@@ -300,31 +308,44 @@ export default function PostPage({
             )}
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={saveLoading}
-            className={cn(
-              "flex items-center gap-2 transition-colors",
-              isSaved
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {isSaved ? (
-              <BookmarkCheck className="h-5 w-5 fill-current" />
-            ) : (
-              <Bookmark className="h-5 w-5" />
-            )}
-            <span>{isSaved ? "Salvo" : "Salvar"}</span>
-          </button>
+          {!settings.hideInteractions && (
+            <button
+              onClick={handleSave}
+              disabled={saveLoading}
+              className={cn(
+                "flex items-center gap-2 transition-colors",
+                isSaved
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="h-5 w-5 fill-current" />
+              ) : (
+                <Bookmark className="h-5 w-5" />
+              )}
+              <span>{isSaved ? "Salvo" : "Salvar"}</span>
+            </button>
+          )}
         </div>
       </article>
 
       {/* Reply input */}
       <div className="mb-8">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-            <span className="text-sm font-medium text-muted-foreground">·</span>
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+            {myProfile?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={myProfile.avatarUrl}
+                alt={myProfile.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-sm font-medium text-muted-foreground">
+                {myProfile?.avatarInitial ?? "·"}
+              </span>
+            )}
           </div>
           <div className="flex-1">
             <textarea

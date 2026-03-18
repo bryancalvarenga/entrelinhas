@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
+import { useWellbeing } from "@/context/wellbeing-context";
 import { getWellbeingSettings, updateWellbeingSettings, deleteAccount } from "@/lib/posts";
 import { WellbeingSettings } from "@/lib/types";
 
@@ -48,6 +49,7 @@ function ToggleSwitch({ enabled, onToggle, disabled }: ToggleSwitchProps) {
 export default function SettingsPage() {
   const router = useRouter();
   const { logout } = useAuth();
+  const { refresh: refreshWellbeing } = useWellbeing();
 
   const [settings, setSettings] = useState<WellbeingSettings | null>(null);
   const [saving, setSaving] = useState(false);
@@ -112,7 +114,7 @@ export default function SettingsPage() {
 
     setSaving(true);
     updateWellbeingSettings({ [key]: updated[key] })
-      .then(setSettings)
+      .then((s) => { setSettings(s); refreshWellbeing(); })
       .catch(() => {
         setSettings(settings);
         // Reverte dark mode se API falhou

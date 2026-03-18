@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import { PostCard } from "@/components/post-card";
-import { getPublicProfile, getProfilePosts } from "@/lib/posts";
+import { getPublicProfile, getProfilePosts, findOrCreateConversation } from "@/lib/posts";
 import { PublicProfile, Post } from "@/lib/types";
+import { useAuth } from "@/context/auth-context";
 
 const INTEREST_LABELS: Record<string, string> = {
   reflexao: "Reflexão",
@@ -32,8 +34,11 @@ export default function UserProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = use(params);
+  const { profileId } = useAuth();
+  const router = useRouter();
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [startingChat, setStartingChat] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -129,9 +134,29 @@ export default function UserProfilePage({
           </div>
         )}
 
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mb-4">
           Membro desde {formatJoinDate(profile.joinedAt)}
         </p>
+
+        {profileId && profileId !== profile.id && (
+          <button
+            onClick={async () => {
+              if (startingChat) return;
+              setStartingChat(true);
+              try {
+                const { conversationId } = await findOrCreateConversation(username);
+                router.push(`/messages/${conversationId}`);
+              } catch {
+                setStartingChat(false);
+              }
+            }}
+            disabled={startingChat}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border border-border/50 rounded-full px-4 py-1.5 transition-colors hover:border-border"
+          >
+            <MessageSquare className="h-4 w-4" />
+            {startingChat ? "Abrindo..." : "Enviar mensagem"}
+          </button>
+        )}
       </div>
 
       {/* Posts */}

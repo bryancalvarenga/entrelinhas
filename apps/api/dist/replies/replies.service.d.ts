@@ -5,8 +5,8 @@ export declare class RepliesService {
     constructor(prisma: PrismaService);
     findByPost(postId: string): Promise<{
         id: string;
-        content: string;
         createdAt: Date;
+        content: string;
         author: {
             id: string;
             name: string;
@@ -17,8 +17,8 @@ export declare class RepliesService {
     }[]>;
     create(postId: string, profileId: string, dto: CreateReplyDto): Promise<{
         id: string;
-        content: string;
         createdAt: Date;
+        content: string;
         author: {
             id: string;
             name: string;

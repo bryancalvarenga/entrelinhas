@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Post } from "@/lib/types";
 import { touchPost, untouchPost, savePost, unsavePost, deletePost } from "@/lib/posts";
 import { useAuth } from "@/context/auth-context";
+import { useWellbeing } from "@/context/wellbeing-context";
 
 interface PostCardProps {
   post: Post;
@@ -47,6 +48,7 @@ export function PostCard({
   onDeleted,
 }: PostCardProps) {
   const { profileId } = useAuth();
+  const { settings } = useWellbeing();
   const isOwner = !!profileId && post.author.id === profileId;
 
   const [isTouched, setIsTouched] = useState(
@@ -178,23 +180,25 @@ export function PostCard({
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t border-border/50">
         <div className="flex items-center gap-6">
-          <button
-            onClick={handleTouch}
-            disabled={touchLoading}
-            className={cn(
-              "flex items-center gap-2 text-sm transition-colors",
-              isTouched
-                ? "text-accent"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <HeartHandshake
-              className={cn("h-4 w-4", isTouched && "fill-current")}
-            />
-            <span className="hidden sm:inline">
-              {isTouched ? "Me tocou" : "Isso me tocou"}
-            </span>
-          </button>
+          {!settings.hideInteractions && (
+            <button
+              onClick={handleTouch}
+              disabled={touchLoading}
+              className={cn(
+                "flex items-center gap-2 text-sm transition-colors",
+                isTouched
+                  ? "text-accent"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <HeartHandshake
+                className={cn("h-4 w-4", isTouched && "fill-current")}
+              />
+              <span className="hidden sm:inline">
+                {isTouched ? "Me tocou" : "Isso me tocou"}
+              </span>
+            </button>
+          )}
 
           <Link
             href={`/post/${post.id}`}
@@ -209,23 +213,25 @@ export function PostCard({
           </Link>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saveLoading}
-          className={cn(
-            "flex items-center gap-2 text-sm transition-colors",
-            isSaved
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {isSaved ? (
-            <BookmarkCheck className="h-4 w-4 fill-current" />
-          ) : (
-            <Bookmark className="h-4 w-4" />
-          )}
-          <span className="hidden sm:inline">{isSaved ? "Salvo" : "Salvar"}</span>
-        </button>
+        {!settings.hideInteractions && (
+          <button
+            onClick={handleSave}
+            disabled={saveLoading}
+            className={cn(
+              "flex items-center gap-2 text-sm transition-colors",
+              isSaved
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {isSaved ? (
+              <BookmarkCheck className="h-4 w-4 fill-current" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">{isSaved ? "Salvo" : "Salvar"}</span>
+          </button>
+        )}
       </div>
     </article>
   );

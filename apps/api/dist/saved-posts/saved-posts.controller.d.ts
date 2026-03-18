@@ -5,18 +5,18 @@ export declare class SavedPostsController {
     findAll(req: any): Promise<{
         savedAt: Date;
         id: string;
+        createdAt: Date;
+        _count: {
+            replies: number;
+        };
         content: string;
         intention: import(".prisma/client").$Enums.PostIntention;
-        createdAt: Date;
         author: {
             id: string;
             name: string;
             username: string;
             avatarInitial: string;
             avatarUrl: string | null;
-        };
-        _count: {
-            replies: number;
         };
     }[]>;
     getSaveStatus(postId: string, req: any): Promise<{

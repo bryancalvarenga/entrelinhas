@@ -21,6 +21,11 @@ export class NotificationsController {
     return this.notificationsService.findUnread(req.user.profileId);
   }
 
+  @Get('count')
+  countUnread(@Request() req: any) {
+    return this.notificationsService.countUnread(req.user.profileId);
+  }
+
   @Patch('read')
   @HttpCode(HttpStatus.OK)
   markAllRead(@Request() req: any) {
