@@ -44,13 +44,6 @@ let FollowsService = class FollowsService {
             create: { followerId, followingId: target.id },
             update: {},
         });
-        await this.prisma.notification.create({
-            data: {
-                recipientId: target.id,
-                type: 'new_follower',
-                referenceId: followerId,
-            },
-        });
         return { following: true };
     }
     async unfollow(username, followerId) {

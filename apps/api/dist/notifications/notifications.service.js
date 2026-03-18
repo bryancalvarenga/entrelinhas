@@ -18,7 +18,7 @@ let NotificationsService = class NotificationsService {
     }
     async findUnread(profileId) {
         return this.prisma.notification.findMany({
-            where: { recipientId: profileId, read: false },
+            where: { recipientId: profileId, read: false, type: 'new_reply' },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -30,14 +30,14 @@ let NotificationsService = class NotificationsService {
     }
     async markAllRead(profileId) {
         await this.prisma.notification.updateMany({
-            where: { recipientId: profileId, read: false },
+            where: { recipientId: profileId, read: false, type: 'new_reply' },
             data: { read: true },
         });
         return { done: true };
     }
     async countUnread(profileId) {
         const count = await this.prisma.notification.count({
-            where: { recipientId: profileId, read: false },
+            where: { recipientId: profileId, read: false, type: 'new_reply' },
         });
         return { count };
     }
