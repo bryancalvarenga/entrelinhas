@@ -16,7 +16,7 @@ async function fetchStats(): Promise<{ users: number; posts: number } | null> {
   try {
     const res = await fetch(`${API}/stats`, { cache: "no-store" });
     if (!res.ok) return null;
-    return res.json();
+    return await res.json();
   } catch {
     return null;
   }
@@ -33,7 +33,9 @@ async function fetchRandomPost(): Promise<RandomPost | null> {
   try {
     const res = await fetch(`${API}/posts/random`, { cache: "no-store" });
     if (!res.ok) return null;
-    return res.json();
+    const data = await res.json();
+    if (!data?.id || !data?.content || !data?.author?.name) return null;
+    return data;
   } catch {
     return null;
   }
