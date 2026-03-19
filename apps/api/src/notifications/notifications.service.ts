@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 
-// Notificações limitadas a new_reply.
-// Follows e touches não geram notificações.
+// Notificações do sino: new_reply e new_follower.
+// new_message é separado — aparece apenas no ícone de mensagens.
+// Touches nunca geram notificações.
+
+const BELL_TYPES: ('new_reply' | 'new_follower')[] = ['new_reply', 'new_follower'];
 
 @Injectable()
 export class NotificationsService {
@@ -10,7 +13,11 @@ export class NotificationsService {
 
   async findUnread(profileId: string) {
     return this.prisma.notification.findMany({
-      where: { recipientId: profileId, read: false, type: 'new_reply' },
+      where: {
+        recipientId: profileId,
+        read: false,
+        type: { in: BELL_TYPES },
+      },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -23,7 +30,11 @@ export class NotificationsService {
 
   async markAllRead(profileId: string) {
     await this.prisma.notification.updateMany({
-      where: { recipientId: profileId, read: false, type: 'new_reply' },
+      where: {
+        recipientId: profileId,
+        read: false,
+        type: { in: BELL_TYPES },
+      },
       data: { read: true },
     });
 
@@ -32,7 +43,11 @@ export class NotificationsService {
 
   async countUnread(profileId: string): Promise<{ count: number }> {
     const count = await this.prisma.notification.count({
-      where: { recipientId: profileId, read: false, type: 'new_reply' },
+      where: {
+        recipientId: profileId,
+        read: false,
+        type: { in: BELL_TYPES },
+      },
     });
     return { count };
   }

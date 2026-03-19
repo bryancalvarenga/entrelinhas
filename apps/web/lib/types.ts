@@ -49,7 +49,7 @@ export interface MyProfile extends PublicProfile {
 
 export interface AppNotification {
   id: string;
-  type: "new_reply";
+  type: "new_reply" | "new_follower" | "new_message";
   referenceId: string | null;
   createdAt: string;
 }

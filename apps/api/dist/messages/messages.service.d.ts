@@ -23,6 +23,9 @@ export declare class MessagesService {
         };
         unread: boolean;
     }[]>;
+    hasUnreadMessages(profileId: string): Promise<{
+        hasUnread: boolean;
+    }>;
     findMessages(conversationId: string, profileId: string): Promise<{
         conversationId: string;
         otherProfile: {
@@ -51,6 +54,7 @@ export declare class MessagesService {
     }>;
     canSend(conversationId: string, senderId: string): Promise<{
         canSend: boolean;
+        reason?: string;
         unlocksAt?: string;
     }>;
     send(conversationId: string, senderId: string, content: string): Promise<{

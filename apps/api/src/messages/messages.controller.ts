@@ -37,6 +37,12 @@ export class MessagesController {
     return this.messagesService.findAll(req.user.profileId);
   }
 
+  // Verificar se há mensagens não lidas em qualquer conversa
+  @Get('has-unread')
+  hasUnread(@Request() req: any) {
+    return this.messagesService.hasUnreadMessages(req.user.profileId);
+  }
+
   // Abrir conversa com mensagens
   @Get(':id')
   findMessages(@Param('id') id: string, @Request() req: any) {

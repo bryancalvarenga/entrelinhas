@@ -26,6 +26,9 @@ export declare class MessagesController {
         };
         unread: boolean;
     }[]>;
+    hasUnread(req: any): Promise<{
+        hasUnread: boolean;
+    }>;
     findMessages(id: string, req: any): Promise<{
         conversationId: string;
         otherProfile: {
@@ -54,6 +57,7 @@ export declare class MessagesController {
     }>;
     canSend(id: string, req: any): Promise<{
         canSend: boolean;
+        reason?: string;
         unlocksAt?: string;
     }>;
     send(id: string, req: any, dto: CreateMessageDto): Promise<{

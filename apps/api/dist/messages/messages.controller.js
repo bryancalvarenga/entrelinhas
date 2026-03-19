@@ -29,6 +29,9 @@ let MessagesController = class MessagesController {
     findAll(req) {
         return this.messagesService.findAll(req.user.profileId);
     }
+    hasUnread(req) {
+        return this.messagesService.hasUnreadMessages(req.user.profileId);
+    }
     findMessages(id, req) {
         return this.messagesService.findMessages(id, req.user.profileId);
     }
@@ -61,6 +64,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], MessagesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('has-unread'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], MessagesController.prototype, "hasUnread", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

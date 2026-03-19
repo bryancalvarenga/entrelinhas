@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, MessageCircle } from "lucide-react";
+import { ArrowLeft, Bell, MessageCircle, User } from "lucide-react";
 import { AppNotification } from "@/lib/types";
 import { getNotifications, markAllNotificationsRead } from "@/lib/posts";
 import { useWellbeing } from "@/context/wellbeing-context";
@@ -106,14 +106,23 @@ export default function NotificationsPage() {
       {!loading && notifications.length > 0 && (
         <div className="bg-card rounded-xl border border-border/50 divide-y divide-border/50">
           {notifications.map((n) => {
-            const link = n.referenceId ? `/post/${n.referenceId}` : null;
+            const link = n.type === 'new_reply' && n.referenceId
+              ? `/post/${n.referenceId}`
+              : null;
+
+            const icon = n.type === 'new_follower'
+              ? <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              : <MessageCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />;
+
+            const text = n.type === 'new_follower'
+              ? 'Alguém começou a seguir você.'
+              : 'Alguém respondeu a um dos seus registros.';
+
             const content = (
               <div className="flex items-start gap-3 p-4 hover:bg-muted/40 transition-colors">
-                <MessageCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                {icon}
                 <div className="flex-1">
-                  <p className="text-sm text-foreground">
-                    Alguém respondeu a um dos seus registros.
-                  </p>
+                  <p className="text-sm text-foreground">{text}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {formatRelativeTime(n.createdAt)}
                   </p>

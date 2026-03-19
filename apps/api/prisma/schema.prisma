@@ -41,6 +41,7 @@ enum OnboardingIntention {
 enum NotificationType {
   new_reply
   new_follower
+  new_message
 }
 
 // ---------------------------------------------------------------------------
@@ -235,8 +236,9 @@ model Notification {
 // ---------------------------------------------------------------------------
 
 model Conversation {
-  id           String                    @id @default(uuid())
-  createdAt    DateTime                  @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now()) @map("created_at")
+  cooldownUntil DateTime? @map("cooldown_until")
 
   participants ConversationParticipant[]
   messages     Message[]

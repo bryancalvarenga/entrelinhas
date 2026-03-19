@@ -12,13 +12,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
+const BELL_TYPES = ['new_reply', 'new_follower'];
 let NotificationsService = class NotificationsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
     async findUnread(profileId) {
         return this.prisma.notification.findMany({
-            where: { recipientId: profileId, read: false, type: 'new_reply' },
+            where: {
+                recipientId: profileId,
+                read: false,
+                type: { in: BELL_TYPES },
+            },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -30,14 +35,22 @@ let NotificationsService = class NotificationsService {
     }
     async markAllRead(profileId) {
         await this.prisma.notification.updateMany({
-            where: { recipientId: profileId, read: false, type: 'new_reply' },
+            where: {
+                recipientId: profileId,
+                read: false,
+                type: { in: BELL_TYPES },
+            },
             data: { read: true },
         });
         return { done: true };
     }
     async countUnread(profileId) {
         const count = await this.prisma.notification.count({
-            where: { recipientId: profileId, read: false, type: 'new_reply' },
+            where: {
+                recipientId: profileId,
+                read: false,
+                type: { in: BELL_TYPES },
+            },
         });
         return { count };
     }

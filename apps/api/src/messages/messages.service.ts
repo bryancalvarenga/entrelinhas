@@ -7,6 +7,7 @@ import { PrismaService } from '../database/prisma.service';
 import { sanitizeText } from '../common/utils/sanitize';
 
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+const MAX_MESSAGES_PER_TURN = 3;
 
 const SENDER_SELECT = {
   id: true,
@@ -24,6 +25,26 @@ const MESSAGE_SELECT = {
   senderId: true,
   sender: { select: SENDER_SELECT },
 } as const;
+
+interface Turn {
+  senderId: string;
+  count: number;
+  lastSentAt: Date;
+}
+
+function buildTurns(messages: { senderId: string; sentAt: Date }[]): Turn[] {
+  const turns: Turn[] = [];
+  for (const msg of messages) {
+    const last = turns[turns.length - 1];
+    if (last && last.senderId === msg.senderId) {
+      last.count++;
+      last.lastSentAt = msg.sentAt;
+    } else {
+      turns.push({ senderId: msg.senderId, count: 1, lastSentAt: msg.sentAt });
+    }
+  }
+  return turns;
+}
 
 @Injectable()
 export class MessagesService {
@@ -92,7 +113,6 @@ export class MessagesService {
       },
     });
 
-    // Compute unread: messages since my lastSeenAt that were sent by the other
     const withUnread = await Promise.all(
       rows.map(async (c) => {
         const me = await this.prisma.conversationParticipant.findUnique({
@@ -129,6 +149,17 @@ export class MessagesService {
     return withUnread;
   }
 
+  async hasUnreadMessages(profileId: string): Promise<{ hasUnread: boolean }> {
+    const count = await this.prisma.notification.count({
+      where: {
+        recipientId: profileId,
+        type: 'new_message',
+        read: false,
+      },
+    });
+    return { hasUnread: count > 0 };
+  }
+
   async findMessages(conversationId: string, profileId: string) {
     const participant = await this.prisma.conversationParticipant.findUnique({
       where: {
@@ -137,11 +168,22 @@ export class MessagesService {
     });
     if (!participant) throw new ForbiddenException('Você não faz parte desta conversa.');
 
-    // Mark as seen
-    await this.prisma.conversationParticipant.update({
-      where: { conversationId_profileId: { conversationId, profileId } },
-      data: { lastSeenAt: new Date() },
-    });
+    // Mark conversation as seen and clear message notifications
+    await Promise.all([
+      this.prisma.conversationParticipant.update({
+        where: { conversationId_profileId: { conversationId, profileId } },
+        data: { lastSeenAt: new Date() },
+      }),
+      this.prisma.notification.updateMany({
+        where: {
+          recipientId: profileId,
+          type: 'new_message',
+          referenceId: conversationId,
+          read: false,
+        },
+        data: { read: true },
+      }),
+    ]);
 
     const messages = await this.prisma.message.findMany({
       where: { conversationId, deletedAt: null },
@@ -168,24 +210,67 @@ export class MessagesService {
   async canSend(
     conversationId: string,
     senderId: string,
-  ): Promise<{ canSend: boolean; unlocksAt?: string }> {
-    const lastFromOther = await this.prisma.message.findFirst({
-      where: {
-        conversationId,
-        senderId: { not: senderId },
-        deletedAt: null,
-      },
-      orderBy: { sentAt: 'desc' },
-      select: { sentAt: true },
+  ): Promise<{ canSend: boolean; reason?: string; unlocksAt?: string }> {
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { cooldownUntil: true },
     });
 
-    if (!lastFromOther) return { canSend: true };
+    // Check stored cooldown
+    const now = new Date();
+    if (conversation?.cooldownUntil && conversation.cooldownUntil > now) {
+      return {
+        canSend: false,
+        reason: 'conversation_in_cooldown',
+        unlocksAt: conversation.cooldownUntil.toISOString(),
+      };
+    }
 
-    const elapsed = Date.now() - lastFromOther.sentAt.getTime();
-    if (elapsed >= THREE_HOURS_MS) return { canSend: true };
+    // Get messages since last cooldown ended (or all if no previous cooldown)
+    const sinceDate = conversation?.cooldownUntil ?? new Date(0);
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId, deletedAt: null, sentAt: { gt: sinceDate } },
+      orderBy: { sentAt: 'asc' },
+      select: { senderId: true, sentAt: true },
+    });
 
-    const unlocksAt = new Date(lastFromOther.sentAt.getTime() + THREE_HOURS_MS);
-    return { canSend: false, unlocksAt: unlocksAt.toISOString() };
+    const turns = buildTurns(messages);
+
+    if (turns.length === 0) return { canSend: true };
+
+    const lastTurn = turns[turns.length - 1];
+
+    if (lastTurn.senderId === senderId) {
+      // It's currently our turn — check message limit
+      if (lastTurn.count >= MAX_MESSAGES_PER_TURN) {
+        return { canSend: false, reason: 'limit_reached' };
+      }
+      return { canSend: true };
+    }
+
+    // The other person spoke last
+    if (turns.length === 1) {
+      // Only one turn so far (by the other), it's our turn to respond
+      return { canSend: true };
+    }
+
+    // turns.length >= 2: both have sent → cycle complete, set cooldown lazily
+    // Base cooldown from when the other person last sent in their turn
+    const cooldownUntil = new Date(
+      lastTurn.lastSentAt.getTime() + THREE_HOURS_MS,
+    );
+
+    // Persist the cooldown so it's stable for both participants
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { cooldownUntil },
+    });
+
+    return {
+      canSend: false,
+      reason: 'conversation_in_cooldown',
+      unlocksAt: cooldownUntil.toISOString(),
+    };
   }
 
   async send(conversationId: string, senderId: string, content: string) {
@@ -194,22 +279,80 @@ export class MessagesService {
     });
     if (!participant) throw new ForbiddenException('Você não faz parte desta conversa.');
 
-    const { canSend, unlocksAt } = await this.canSend(conversationId, senderId);
+    const { canSend, reason, unlocksAt } = await this.canSend(
+      conversationId,
+      senderId,
+    );
+
     if (!canSend) {
-      const t = new Date(unlocksAt!).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC',
-      });
+      if (reason === 'limit_reached') {
+        throw new ForbiddenException(
+          'Você já enviou 3 mensagens seguidas. Aguarde uma resposta para continuar.',
+        );
+      }
+
+      const t = unlocksAt
+        ? new Date(unlocksAt).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null;
+
       throw new ForbiddenException(
-        `Você poderá responder a partir das ${t}. Cada conversa tem seu próprio ritmo.`,
+        t
+          ? `Essa conversa está em pausa. Você poderá continuar às ${t}.`
+          : 'Essa conversa está em pausa por enquanto.',
       );
     }
 
-    return this.prisma.message.create({
+    const message = await this.prisma.message.create({
       data: { conversationId, senderId, content: sanitizeText(content) },
       select: MESSAGE_SELECT,
     });
+
+    // After sending, check if the cycle just completed (turn 2 sender hit their limit)
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { cooldownUntil: true },
+    });
+    const sinceDate = conversation?.cooldownUntil ?? new Date(0);
+
+    const allMessages = await this.prisma.message.findMany({
+      where: { conversationId, deletedAt: null, sentAt: { gt: sinceDate } },
+      orderBy: { sentAt: 'asc' },
+      select: { senderId: true, sentAt: true },
+    });
+
+    const turns = buildTurns(allMessages);
+    if (
+      turns.length === 2 &&
+      turns[1].count >= MAX_MESSAGES_PER_TURN &&
+      !conversation?.cooldownUntil
+    ) {
+      // Eagerly set cooldown when turn 2 sender reaches their limit
+      await this.prisma.conversation.update({
+        where: { id: conversationId },
+        data: { cooldownUntil: new Date(Date.now() + THREE_HOURS_MS) },
+      });
+    }
+
+    // Notify the other participant
+    const recipient = await this.prisma.conversationParticipant.findFirst({
+      where: { conversationId, profileId: { not: senderId } },
+      select: { profileId: true },
+    });
+
+    if (recipient) {
+      await this.prisma.notification.create({
+        data: {
+          recipientId: recipient.profileId,
+          type: 'new_message',
+          referenceId: conversationId,
+        },
+      });
+    }
+
+    return message;
   }
 
   async edit(

@@ -100,8 +100,9 @@ export default function ConversationPage({
       setEditing(null);
       setEditContent("");
       load();
-    } catch {
-      // silently fail
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Não foi possível editar.";
+      setSendError(msg);
     }
   };
 
@@ -113,8 +114,9 @@ export default function ConversationPage({
           ? { ...prev, messages: prev.messages.filter((m) => m.id !== msgId) }
           : prev,
       );
-    } catch {
-      // silently fail
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Não foi possível remover.";
+      setSendError(msg);
     }
   };
 

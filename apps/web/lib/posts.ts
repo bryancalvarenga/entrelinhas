@@ -179,6 +179,10 @@ export async function deleteMessage(conversationId: string, messageId: string) {
   return api.delete(`/conversations/${conversationId}/messages/${messageId}`);
 }
 
+export async function getHasUnreadMessages(): Promise<{ hasUnread: boolean }> {
+  return api.get<{ hasUnread: boolean }>("/conversations/has-unread");
+}
+
 // Account
 export async function deleteAccount(): Promise<{ deleted: boolean }> {
   return api.delete("/auth/account");

@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../database/prisma.service");
 const sanitize_1 = require("../common/utils/sanitize");
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+const MAX_MESSAGES_PER_TURN = 3;
 const SENDER_SELECT = {
     id: true,
     name: true,
@@ -29,6 +30,20 @@ const MESSAGE_SELECT = {
     senderId: true,
     sender: { select: SENDER_SELECT },
 };
+function buildTurns(messages) {
+    const turns = [];
+    for (const msg of messages) {
+        const last = turns[turns.length - 1];
+        if (last && last.senderId === msg.senderId) {
+            last.count++;
+            last.lastSentAt = msg.sentAt;
+        }
+        else {
+            turns.push({ senderId: msg.senderId, count: 1, lastSentAt: msg.sentAt });
+        }
+    }
+    return turns;
+}
 let MessagesService = class MessagesService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -119,6 +134,16 @@ let MessagesService = class MessagesService {
         }));
         return withUnread;
     }
+    async hasUnreadMessages(profileId) {
+        const count = await this.prisma.notification.count({
+            where: {
+                recipientId: profileId,
+                type: 'new_message',
+                read: false,
+            },
+        });
+        return { hasUnread: count > 0 };
+    }
     async findMessages(conversationId, profileId) {
         const participant = await this.prisma.conversationParticipant.findUnique({
             where: {
@@ -127,10 +152,21 @@ let MessagesService = class MessagesService {
         });
         if (!participant)
             throw new common_1.ForbiddenException('Você não faz parte desta conversa.');
-        await this.prisma.conversationParticipant.update({
-            where: { conversationId_profileId: { conversationId, profileId } },
-            data: { lastSeenAt: new Date() },
-        });
+        await Promise.all([
+            this.prisma.conversationParticipant.update({
+                where: { conversationId_profileId: { conversationId, profileId } },
+                data: { lastSeenAt: new Date() },
+            }),
+            this.prisma.notification.updateMany({
+                where: {
+                    recipientId: profileId,
+                    type: 'new_message',
+                    referenceId: conversationId,
+                    read: false,
+                },
+                data: { read: true },
+            }),
+        ]);
         const messages = await this.prisma.message.findMany({
             where: { conversationId, deletedAt: null },
             orderBy: { sentAt: 'asc' },
@@ -150,22 +186,47 @@ let MessagesService = class MessagesService {
         };
     }
     async canSend(conversationId, senderId) {
-        const lastFromOther = await this.prisma.message.findFirst({
-            where: {
-                conversationId,
-                senderId: { not: senderId },
-                deletedAt: null,
-            },
-            orderBy: { sentAt: 'desc' },
-            select: { sentAt: true },
+        const conversation = await this.prisma.conversation.findUnique({
+            where: { id: conversationId },
+            select: { cooldownUntil: true },
         });
-        if (!lastFromOther)
+        const now = new Date();
+        if (conversation?.cooldownUntil && conversation.cooldownUntil > now) {
+            return {
+                canSend: false,
+                reason: 'conversation_in_cooldown',
+                unlocksAt: conversation.cooldownUntil.toISOString(),
+            };
+        }
+        const sinceDate = conversation?.cooldownUntil ?? new Date(0);
+        const messages = await this.prisma.message.findMany({
+            where: { conversationId, deletedAt: null, sentAt: { gt: sinceDate } },
+            orderBy: { sentAt: 'asc' },
+            select: { senderId: true, sentAt: true },
+        });
+        const turns = buildTurns(messages);
+        if (turns.length === 0)
             return { canSend: true };
-        const elapsed = Date.now() - lastFromOther.sentAt.getTime();
-        if (elapsed >= THREE_HOURS_MS)
+        const lastTurn = turns[turns.length - 1];
+        if (lastTurn.senderId === senderId) {
+            if (lastTurn.count >= MAX_MESSAGES_PER_TURN) {
+                return { canSend: false, reason: 'limit_reached' };
+            }
             return { canSend: true };
-        const unlocksAt = new Date(lastFromOther.sentAt.getTime() + THREE_HOURS_MS);
-        return { canSend: false, unlocksAt: unlocksAt.toISOString() };
+        }
+        if (turns.length === 1) {
+            return { canSend: true };
+        }
+        const cooldownUntil = new Date(lastTurn.lastSentAt.getTime() + THREE_HOURS_MS);
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: { cooldownUntil },
+        });
+        return {
+            canSend: false,
+            reason: 'conversation_in_cooldown',
+            unlocksAt: cooldownUntil.toISOString(),
+        };
     }
     async send(conversationId, senderId, content) {
         const participant = await this.prisma.conversationParticipant.findUnique({
@@ -173,19 +234,58 @@ let MessagesService = class MessagesService {
         });
         if (!participant)
             throw new common_1.ForbiddenException('Você não faz parte desta conversa.');
-        const { canSend, unlocksAt } = await this.canSend(conversationId, senderId);
+        const { canSend, reason, unlocksAt } = await this.canSend(conversationId, senderId);
         if (!canSend) {
-            const t = new Date(unlocksAt).toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZone: 'UTC',
-            });
-            throw new common_1.ForbiddenException(`Você poderá responder a partir das ${t}. Cada conversa tem seu próprio ritmo.`);
+            if (reason === 'limit_reached') {
+                throw new common_1.ForbiddenException('Você já enviou 3 mensagens seguidas. Aguarde uma resposta para continuar.');
+            }
+            const t = unlocksAt
+                ? new Date(unlocksAt).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                })
+                : null;
+            throw new common_1.ForbiddenException(t
+                ? `Essa conversa está em pausa. Você poderá continuar às ${t}.`
+                : 'Essa conversa está em pausa por enquanto.');
         }
-        return this.prisma.message.create({
+        const message = await this.prisma.message.create({
             data: { conversationId, senderId, content: (0, sanitize_1.sanitizeText)(content) },
             select: MESSAGE_SELECT,
         });
+        const conversation = await this.prisma.conversation.findUnique({
+            where: { id: conversationId },
+            select: { cooldownUntil: true },
+        });
+        const sinceDate = conversation?.cooldownUntil ?? new Date(0);
+        const allMessages = await this.prisma.message.findMany({
+            where: { conversationId, deletedAt: null, sentAt: { gt: sinceDate } },
+            orderBy: { sentAt: 'asc' },
+            select: { senderId: true, sentAt: true },
+        });
+        const turns = buildTurns(allMessages);
+        if (turns.length === 2 &&
+            turns[1].count >= MAX_MESSAGES_PER_TURN &&
+            !conversation?.cooldownUntil) {
+            await this.prisma.conversation.update({
+                where: { id: conversationId },
+                data: { cooldownUntil: new Date(Date.now() + THREE_HOURS_MS) },
+            });
+        }
+        const recipient = await this.prisma.conversationParticipant.findFirst({
+            where: { conversationId, profileId: { not: senderId } },
+            select: { profileId: true },
+        });
+        if (recipient) {
+            await this.prisma.notification.create({
+                data: {
+                    recipientId: recipient.profileId,
+                    type: 'new_message',
+                    referenceId: conversationId,
+                },
+            });
+        }
+        return message;
     }
     async edit(conversationId, messageId, senderId, content) {
         const msg = await this.prisma.message.findUnique({ where: { id: messageId } });

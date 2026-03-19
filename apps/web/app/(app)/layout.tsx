@@ -6,7 +6,7 @@ import { Home, PenLine, User, Settings, Search, Bell, MessageSquare } from "luci
 import { AppNavLink } from "@/components/app-nav-link";
 import { AuthGuard } from "@/components/auth-guard";
 import { WellbeingProvider, useWellbeing } from "@/context/wellbeing-context";
-import { getNotificationCount } from "@/lib/posts";
+import { getNotificationCount, getHasUnreadMessages } from "@/lib/posts";
 import { cn } from "@/lib/utils";
 
 function AppHeader() {
@@ -27,8 +27,7 @@ function AppHeader() {
     return () => clearInterval(interval);
   }, [settings.silentMode]);
 
-  // reducedNotifications: não exibe badge (mas sino ainda está acessível)
-  const showBadge = !settings.silentMode && !settings.reducedNotifications && unreadCount > 0;
+  const showBellBadge = !settings.silentMode && !settings.reducedNotifications && unreadCount > 0;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border/50">
@@ -54,7 +53,7 @@ function AppHeader() {
             )}
           >
             <Bell className="h-5 w-5" />
-            {showBadge && (
+            {showBellBadge && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
             )}
             <span className="sr-only">Notificações</span>
@@ -62,6 +61,34 @@ function AppHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+function MessagesNavItem() {
+  const { settings } = useWellbeing();
+  const [hasUnread, setHasUnread] = useState(false);
+
+  useEffect(() => {
+    if (settings.silentMode || settings.reducedNotifications) return;
+
+    const poll = () => {
+      getHasUnreadMessages()
+        .then(({ hasUnread }) => setHasUnread(hasUnread))
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, 60_000);
+    return () => clearInterval(interval);
+  }, [settings.silentMode, settings.reducedNotifications]);
+
+  return (
+    <div className="relative">
+      <AppNavLink href="/messages" icon={<MessageSquare className="h-5 w-5" />} label="Mensagens" />
+      {hasUnread && (
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary pointer-events-none" />
+      )}
+    </div>
   );
 }
 
@@ -78,7 +105,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-around">
               <AppNavLink href="/feed" icon={<Home className="h-5 w-5" />} label="Início" />
               <AppNavLink href="/new" icon={<PenLine className="h-5 w-5" />} label="Escrever" />
-              <AppNavLink href="/messages" icon={<MessageSquare className="h-5 w-5" />} label="Mensagens" />
+              <MessagesNavItem />
               <AppNavLink href="/profile" icon={<User className="h-5 w-5" />} label="Perfil" />
               <AppNavLink href="/settings" icon={<Settings className="h-5 w-5" />} label="Ajustes" />
             </div>

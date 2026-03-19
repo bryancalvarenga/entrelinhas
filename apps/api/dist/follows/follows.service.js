@@ -34,16 +34,22 @@ let FollowsService = class FollowsService {
         if (target.id === followerId) {
             throw new common_1.BadRequestException('Você não pode se seguir.');
         }
-        await this.prisma.follow.upsert({
-            where: {
-                followerId_followingId: {
-                    followerId,
-                    followingId: target.id,
-                },
-            },
-            create: { followerId, followingId: target.id },
-            update: {},
+        const existing = await this.prisma.follow.findUnique({
+            where: { followerId_followingId: { followerId, followingId: target.id } },
+            select: { followerId: true },
         });
+        if (!existing) {
+            await this.prisma.follow.create({
+                data: { followerId, followingId: target.id },
+            });
+            await this.prisma.notification.create({
+                data: {
+                    recipientId: target.id,
+                    type: 'new_follower',
+                    referenceId: followerId,
+                },
+            });
+        }
         return { following: true };
     }
     async unfollow(username, followerId) {
